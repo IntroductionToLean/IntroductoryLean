@@ -14,16 +14,16 @@ inductive Nat : Type
 #check Nat.rec
 
 
-def Nat.factorial : Nat → Nat :=
-Nat.rec 1 (fun n factorial_n ↦ (n + 1) * factorial_n)
+-- def Nat.factorial : Nat → Nat :=
+-- Nat.rec 1 (fun n factorial_n ↦ (n + 1) * factorial_n)
 
-#eval Nat.factorial 10
+-- #eval Nat.factorial 10
 
-def Nat.factorial'
-| 0 => 1
-| succ n => (n + 1) * (factorial' n)
+-- def Nat.factorial'
+-- | 0 => 1
+-- | succ n => (n + 1) * (factorial' n)
 
-#eval Nat.factorial' 10
+-- #eval Nat.factorial' 10
 
 inductive Integer : Type
 | nonneg : Nat → Integer
