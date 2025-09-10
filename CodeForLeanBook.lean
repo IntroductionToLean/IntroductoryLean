@@ -1,1 +1,9 @@
-import CodeForLeanBook.Basic
+import CodeForLeanBook.LogicExercise.Sheet1
+import CodeForLeanBook.LogicExercise.Sheet2
+import CodeForLeanBook.LogicExercise.Sheet3
+import CodeForLeanBook.LogicExercise.Sheet4
+import CodeForLeanBook.LogicExercise.Sheet5
+import CodeForLeanBook.LogicExercise.Sheet6
+import CodeForLeanBook.PartOne.ChapterOne.Example
+import CodeForLeanBook.PartOne.ChapterTwo.Function
+import CodeForLeanBook.PartOne.ChapterTwo.Inductive

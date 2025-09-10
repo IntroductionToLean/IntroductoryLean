@@ -19,3 +19,7 @@
 ### 使用线上工具
 
 点击 [![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/IntroductionToLean/IntroductoryLean.git)
+
+
+### Special Thanks
+The course took huge inspirations from Kevin Buzzard's formalising mathenatics course at Imperial College. A large chunk of the exercise sheets are taken verbatim from his course repository.
