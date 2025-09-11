@@ -6,8 +6,13 @@
 
 1. 安装 [Visual Studio Code](https://code.visualstudio.com/)
 2. 打开 Visual Studio Code 后在 `Extensions` 中搜索Lean4。
+
 ![lean-install](img/lean4-install.png)
-3. 新建任意文件后，点击右上角的“∀”图标然后选择 'Documentation… > Docs: Show Setup Guide'。 ![lean-setup](img/lean-setup.png)
+
+3. 新建任意文件后，点击右上角的“∀”图标然后选择 'Documentation… > Docs: Show Setup Guide'。 
+
+![lean-setup](img/lean-setup.png)
+
 4. 按照 `Setup Guide` 的提示及可安装 Lean4。 ![lean-setup-guide](img/lean-setup-guide.png)
 5. 在安装完成 Lean4后，点击右上角的“∀”图标并选择 'Open Project > Download Project'，输入以下网址
 `https://github.com/IntroductionToLean/IntroductoryLean.git`后，跟随提示下载并打开此文件夹即可。
