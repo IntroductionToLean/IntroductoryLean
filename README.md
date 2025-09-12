@@ -18,7 +18,7 @@
 `https://github.com/IntroductionToLean/IntroductoryLean.git`后，跟随提示下载并打开此文件夹即可。
 
 > 注意：
-> 初次打开一个 Lean4 的项目时，因需要下载mathlib的缓存，需耐心等待一会。
+> 初次打开一个 Lean4 的项目时，打开一个`.lean`的文件会自动下载mathlib，因需要下载mathlib的缓存，需耐心等待一会。
 
 
 ### 使用线上工具
