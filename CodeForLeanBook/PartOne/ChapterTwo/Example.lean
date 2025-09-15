@@ -9,19 +9,10 @@ structure PointedSet where
 instance : CoeSort PointedSet Type where
   coe T := T.t
 
-@[simps]
-def S0 : PointedSet where
-  t := Bool
-  base := true
-
 @[ext]
 structure PointedFunc (S T : PointedSet) where
   toFun : S → T
   preserves' : toFun S.base = T.base
-
-abbrev PointedSet.InternalHom (S T : PointedSet) : PointedSet where
-  t := PointedFunc S T
-  base := ⟨fun _ => T.base, rfl⟩
 
 instance (S T : PointedSet) : FunLike (PointedFunc S T) S T where
   coe f := f.toFun
@@ -33,12 +24,21 @@ instance (S T : PointedSet) : FunLike (PointedFunc S T) S T where
 lemma PointedFunc.preserves {S T : PointedSet} (f : PointedFunc S T) :
   f S.base = T.base := f.preserves'
 
-def PointedSet.product (S T : PointedSet) : PointedSet where
+@[simps]
+def S0 : PointedSet where
+  t := Bool
+  base := true
+
+abbrev PointedSet.InternalHom (S T : PointedSet) : PointedSet where
+  t := PointedFunc S T
+  base := ⟨fun _ => T.base, rfl⟩
+
+def PointedSet.Product (S T : PointedSet) : PointedSet where
   t := S × T
   base := (S.base, T.base)
 
 @[simp]
-def baseInProduct {S T : PointedSet} (x : S.product T) : Prop :=
+def baseInProduct {S T : PointedSet} (x : S.Product T) : Prop :=
   x.1 = S.base ∨ x.2 = T.base
 
 inductive smashedRel (S T : PointedSet) (x y : S × T) : Prop
@@ -57,12 +57,12 @@ lemma smashedRel_equivalence (S T : PointedSet) :
   | .eq h, .base h' => .base <| by aesop
   | .eq h, .eq h' => .eq <| by aesop
 
-def smashedSetoid (S T : PointedSet) : Setoid (S.product T) where
+def smashedSetoid (S T : PointedSet) : Setoid (S.Product T) where
   r := smashedRel S T
   iseqv := smashedRel_equivalence S T
 
 @[simp]
-lemma smashedSetoid_rel {S T : PointedSet} (x y : S.product T) :
+lemma smashedSetoid_rel {S T : PointedSet} (x y : S.Product T) :
     smashedSetoid S T x y  ↔ smashedRel _ _ x y := by simp [smashedSetoid]
 
 @[simps]
