@@ -9,6 +9,11 @@ structure PointedSet where
 instance : CoeSort PointedSet Type where
   coe T := T.t
 
+@[simps]
+def S0 : PointedSet where
+  t := Bool
+  base := true
+
 @[ext]
 structure PointedFunc (S T : PointedSet) where
   toFun : S → T
@@ -36,20 +41,21 @@ def PointedSet.product (S T : PointedSet) : PointedSet where
 def baseInProduct {S T : PointedSet} (x : S.product T) : Prop :=
   x.1 = S.base ∨ x.2 = T.base
 
-@[simp]
-def smashedRel (S T : PointedSet) (x y : S × T) : Prop :=
-  (baseInProduct x ∧ baseInProduct y) ∨ x = y
+inductive smashedRel (S T : PointedSet) (x y : S × T) : Prop
+| base (_ : baseInProduct x ∧ baseInProduct y )
+| eq (_ : x = y)
 
 lemma smashedRel_equivalence (S T : PointedSet) :
-    Equivalence (smashedRel S T) := by
-  refine ⟨?_, ?_, ?_⟩
-  · tauto
-  · simp; tauto
-  · rintro x y z (hxy|rfl) (hyz|rfl)
-    · left; tauto
-    · left; tauto
-    · left; tauto
-    · right; tauto
+    Equivalence (smashedRel S T) where
+  refl _ := .eq rfl
+  symm
+  | .base h => .base h.symm
+  | .eq h => .eq h.symm
+  trans
+  | .base h, .base h' => .base <| by tauto
+  | .base h, .eq h' => .base <| by aesop
+  | .eq h, .base h' => .base <| by aesop
+  | .eq h, .eq h' => .eq <| by aesop
 
 def smashedSetoid (S T : PointedSet) : Setoid (S.product T) where
   r := smashedRel S T
@@ -71,15 +77,17 @@ example (A B C : PointedSet) :
       { toFun b := f ⟦(a, b)⟧
         preserves' := by
           convert f.preserves
-          simp }
+          simp only [PointedSet.Smash_t, PointedSet.Smash_base, Quotient.eq, smashedSetoid_rel]
+          exact .base (by simp) }
       preserves' := by
         rw [PointedFunc.ext_iff]
         ext
         simp only [PointedSet.Smash_t]
         convert f.preserves
-        simp }
+        simp only [PointedSet.Smash_base, Quotient.eq, smashedSetoid_rel]
+        exact .base (by simp) }
   invFun f :=
-  { toFun := Quotient.rec (fun a => f a.1 a.2) <| by
+  { toFun a := a.recOn (fun a => f a.1 a.2) <| by
       rintro ⟨a, b⟩ ⟨a', b'⟩ (h|h)
       · aesop
       · aesop
@@ -92,3 +100,19 @@ example (A B C : PointedSet) :
     induction x using Quotient.inductionOn with | h x =>
     rfl
   right_inv _ := rfl
+
+example (A : PointedSet) : A.Smash S0 ≃ A where
+  toFun x := x.recOn (fun| (a, true) => A.base | (a, false) => a) <| by
+      rintro ⟨a, ⟨⟩|⟨⟩⟩ ⟨a', ⟨⟩|⟨⟩⟩ (h|h) <;> aesop
+  invFun := fun a ↦ ⟦(a, false)⟧
+  left_inv := by
+    intro x
+    induction x using Quotient.inductionOn with | h x =>
+    rcases x with ⟨a, ⟨⟩|⟨⟩⟩
+    · simp only [PointedSet.Smash_t, S0_t, Quotient.eq]
+      exact .eq rfl
+    · simp only [PointedSet.Smash_t, S0_t, Quotient.eq]
+      refine .base ?_
+      simp only [baseInProduct, S0_t, S0_base, Bool.false_eq_true, or_false, or_true, and_true]
+      rfl
+  right_inv _ := by rfl
