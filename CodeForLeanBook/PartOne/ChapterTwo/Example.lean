@@ -33,9 +33,16 @@ abbrev PointedSet.InternalHom (S T : PointedSet) : PointedSet where
   t := PointedFunc S T
   base := ⟨fun _ => T.base, rfl⟩
 
+@[simps]
 def PointedSet.Product (S T : PointedSet) : PointedSet where
   t := S × T
   base := (S.base, T.base)
+
+@[simps]
+def PointedFunc.product {S S' T T' : PointedSet} (f : PointedFunc S S') (g : PointedFunc T T') :
+    PointedFunc (S.Product T) (S'.Product T') where
+  toFun p := (f p.1, g p.2)
+  preserves' := by simp
 
 @[simp]
 def baseInProduct {S T : PointedSet} (x : S.Product T) : Prop :=
@@ -61,14 +68,30 @@ def smashedSetoid (S T : PointedSet) : Setoid (S.Product T) where
   r := smashedRel S T
   iseqv := smashedRel_equivalence S T
 
-@[simp]
-lemma smashedSetoid_rel {S T : PointedSet} (x y : S.Product T) :
+abbrev smashedSetoid_rel {S T : PointedSet} (x y : S.Product T) :
     smashedSetoid S T x y  ↔ smashedRel _ _ x y := by simp [smashedSetoid]
 
 @[simps]
 def PointedSet.Smash (S T : PointedSet) : PointedSet where
   t := Quotient (smashedSetoid S T)
   base := ⟦(S.base, T.base)⟧
+
+@[simps]
+def PointedFunc.smash {S S' T T' : PointedSet} (f : PointedFunc S S') (g : PointedFunc T T') :
+    PointedFunc (S.Smash T) (S'.Smash T') where
+  toFun := Quotient.map (f.product g) <| by
+    rintro ⟨s, t⟩ ⟨s', t'⟩ (h|⟨rfl, rfl⟩)
+    · refine .base ?_
+      erw [PointedFunc.product_toFun, PointedFunc.product_toFun]
+      aesop
+    · exact .eq rfl
+  preserves' := by
+    simp only [PointedSet.Smash_t, PointedSet.Product_t, PointedSet.Smash_base, Quotient.map_mk,
+      Quotient.eq]
+    erw [PointedFunc.product_toFun]
+    simp only [preserves]
+    refine .base ?_
+    aesop
 
 example (A B C : PointedSet) :
     PointedFunc (A.Smash B) C ≃ PointedFunc A (B.InternalHom C) where
