@@ -24,7 +24,7 @@ structure PreExtension where
   g : carrier →+ B
   injective : Function.Injective f
   surjective : Function.Surjective g
-  exact : ∀ a : A, g (f a) = 0
+  exact : Function.Exact f g
 
 instance : CoeSort (PreExtension A B) Type where
   coe := PreExtension.carrier
@@ -43,7 +43,9 @@ def zero : PreExtension A B where
   g := AddMonoidHom.snd A B
   injective := by rintro a a' ⟨⟩; rfl
   surjective b := ⟨(0, b), rfl⟩
-  exact a := rfl
+  exact := by
+    rintro ⟨a, b⟩
+    simp [eq_comm]
 
 @[simps f g]
 def neg (E : PreExtension A B) : PreExtension A B where
@@ -61,14 +63,22 @@ def neg (E : PreExtension A B) : PreExtension A B where
     use -e
     simp [he]
   exact a := by
-    simp [E.exact a]
+    simp only [E.exact a, Set.mem_range, AddMonoidHom.neg_apply]
+    fconstructor
+    · rintro ⟨y, hy⟩
+      refine ⟨-y, by simp [hy]⟩
 
 @[simps f g]
 def add (E E' : PreExtension A B) : PreExtension A B where
-  carrier := AddSubgroup.pullback E.g E'.g ⧸ (AddMonoidHom.prod E.f (-E'.f) |>.range).addSubgroupOf _
+  carrier :=
+    AddSubgroup.pullback E.g E'.g ⧸
+    (AddMonoidHom.prod E.f (-E'.f) |>.range).addSubgroupOf _
   ab := inferInstance
   f :=
-  { toFun a := QuotientAddGroup.mk' _ ⟨(E.f a, 0), by simp [E.exact]⟩
+  { toFun a := QuotientAddGroup.mk' _ ⟨(E.f a, 0), by
+    simp only [AddSubgroup.mem_pullback, map_zero]
+    exact congr($(E.exact.comp_eq_zero) a)
+    ⟩
     map_zero' := by
       simpa [AddSubgroup.mem_addSubgroupOf] using ⟨0, by simp, by simp⟩
     map_add' a a' := Quotient.sound <| by simp }
@@ -79,7 +89,8 @@ def add (E E' : PreExtension A B) : PreExtension A B where
         rintro ⟨⟨e1, e1'⟩, (h : _ = _)⟩ ⟨⟨e2, e2'⟩, (h' : _ = _)⟩
         simp } <| by
     rintro ⟨⟨e, e'⟩, (h : _ = _)⟩ ⟨x, rfl, rfl⟩
-    simp [E.exact]
+    simp only [AddMonoidHom.neg_apply, AddMonoidHom.mem_ker, AddMonoidHom.coe_mk, ZeroHom.coe_mk]
+    exact congr($(E.exact.comp_eq_zero) _)
   injective := by
     rintro a a' h
     simp only [QuotientAddGroup.mk'_apply, AddMonoidHom.coe_mk, ZeroHom.coe_mk] at h
@@ -100,7 +111,35 @@ def add (E E' : PreExtension A B) : PreExtension A B where
     obtain ⟨e', he'⟩ := E'.surjective b
     use QuotientAddGroup.mk' _ ⟨(e, e'), by simp [he, he']⟩
     simp [he]
-  exact := by intro a; simp [E.exact a]
+  exact := by
+    intro a
+    induction a using QuotientAddGroup.induction_on with | H a =>
+    rcases a with ⟨⟨a, b⟩, ha⟩
+    simp only [AddSubgroup.mem_pullback, QuotientAddGroup.lift_mk, AddMonoidHom.coe_mk,
+      ZeroHom.coe_mk, QuotientAddGroup.mk'_apply, Set.mem_range] at ha ⊢
+    constructor
+    · rintro h
+      have h' : E'.g b = 0 := by
+        rw [← ha]
+        exact h
+      obtain ⟨a, rfl⟩ := E.exact a |>.1 h
+      obtain ⟨a', rfl⟩ := E'.exact b |>.1 h'
+      use a + a'
+      rw [QuotientAddGroup.eq, AddSubgroup.mem_addSubgroupOf]
+      simp only [map_add, AddSubgroup.coe_add, NegMemClass.coe_neg, Prod.neg_mk, neg_add_rev,
+        neg_zero, Prod.mk_add_mk, neg_add_cancel_right, zero_add, AddMonoidHom.mem_range,
+        AddMonoidHom.prod_apply, AddMonoidHom.neg_apply, Prod.mk.injEq]
+      use -a'
+      simp
+    · rintro ⟨x, hx⟩
+      rw [QuotientAddGroup.eq, AddSubgroup.mem_addSubgroupOf] at hx
+      simp only [AddSubgroup.coe_add, NegMemClass.coe_neg, Prod.neg_mk, neg_zero, Prod.mk_add_mk,
+        zero_add, AddMonoidHom.mem_range, AddMonoidHom.prod_apply, AddMonoidHom.neg_apply,
+        Prod.mk.injEq] at hx
+      obtain ⟨y, hy, rfl⟩ := hx
+      simp only [map_neg] at ha
+      rw [show E'.g (E'.f y) = 0 from congr($(E'.exact.comp_eq_zero) y)] at ha
+      simp [ha]
 
 end PreExtension
 
@@ -308,46 +347,39 @@ def addZero (E : PreExtension A B) :
         Prod.neg_mk, Prod.mk_add_mk, neg_add_cancel, add_zero, AddMonoidHom.mem_range,
         AddMonoidHom.prod_apply, Prod.mk.injEq]
       use 0
-      simp only [map_zero, E.exact, zero_eq_neg, true_and]
+      simp only [map_zero, zero_eq_neg, true_and]
+      rw [show E.g (E.f a) = 0 from congr($(E.exact.comp_eq_zero) a)]
       rfl
     comm_g := by rfl }
   inv :=
-  { toAddMonoidHom := QuotientAddGroup.lift _ ((AddMonoidHom.fst _ _).comp (AddSubgroup.subtype _))
+  { toAddMonoidHom := QuotientAddGroup.lift _
+      (AddMonoidHom.restrict
+        (AddMonoidHom.coprod (AddMonoidHom.id _) (E.f.comp <| AddMonoidHom.fst _ _))
+        _)
       (by
-        rintro ⟨⟨e, a, b⟩, ⟨⟩⟩ h
-        simp only [PreExtension.zero_g, PreExtension.zero_f, ZeroHom.toFun_eq_coe,
-          AddMonoidHom.toZeroHom_coe, AddSubgroup.mem_addSubgroupOf, AddMonoidHom.mem_range,
-          AddMonoidHom.prod_apply, Prod.mk.injEq] at h
-        obtain ⟨x, rfl, hx⟩ := h
-        erw [E.exact, Prod.ext_iff, AddMonoidHom.neg_apply, AddMonoidHom.inl_apply] at hx
-        simp only [Prod.neg_mk, neg_zero, and_true] at hx
+        rintro ⟨⟨e, ⟨a, b⟩⟩, (h : E.g e = b)⟩ h'
+        rw [AddSubgroup.mem_addSubgroupOf] at h'
+        simp only [PreExtension.zero_f, AddMonoidHom.mem_range, AddMonoidHom.prod_apply,
+          Prod.mk.injEq] at h'
+        obtain ⟨x, rfl, hx⟩ := h'
+        rw [show E.g (E.f x) = 0 from congr($(E.exact.comp_eq_zero) x)] at h
+        subst h
+        simp only [PreExtension.zero_g, AddMonoidHom.ker_restrict]
+        rw [AddSubgroup.mem_addSubgroupOf]
+        simp only [AddMonoidHom.mem_ker, AddMonoidHom.coprod_apply, AddMonoidHom.id_apply,
+          AddMonoidHom.coe_comp, AddMonoidHom.coe_fst, Function.comp_apply]
+        change (- x, -0) = (a, 0) at hx
+        simp only [neg_zero, Prod.mk.injEq, and_true] at hx
         subst hx
-        simp only [PreExtension.zero_g, ZeroHom.toFun_eq_coe, AddMonoidHom.toZeroHom_coe,
-          AddMonoidHom.mem_ker, AddMonoidHom.coe_comp, AddMonoidHom.coe_fst,
-          AddSubgroup.coe_subtype, Function.comp_apply]
-        sorry)
-    comm_f := _
-    comm_g := _ }
-  hom_inv_id := _
-  inv_hom_id := _
+        simp)
+    comm_f := sorry
+    comm_g := sorry }
+  hom_inv_id := sorry
+  inv_hom_id := sorry
 
 
 def addAssoc (E₁ E₂ E₃ : PreExtension A B) :
-    PreExtensionIso (E₁.add (E₂.add E₃)) ((E₁.add E₂).add E₃) where
-  hom :=
-  { toFun p := ⟨⟨p.1, p.2.1⟩, p.2.2⟩
-    map_zero' := rfl
-    map_add' _ _ := rfl
-    comm_f := rfl
-    comm_g := by ext ⟨a, b, c⟩; exact add_assoc _ _ _ }
-  inv :=
-  { toFun p := ⟨p.1.1, ⟨p.1.2, p.2⟩⟩
-    map_zero' := rfl
-    map_add' _ _ := rfl
-    comm_f := rfl
-    comm_g := by ext ⟨⟨a, b⟩, c⟩; exact (add_assoc _ _ _).symm }
-  hom_inv_id := rfl
-  inv_hom_id := rfl
+    PreExtensionIso (E₁.add (E₂.add E₃)) ((E₁.add E₂).add E₃) := sorry
 
 end PreExtensionIso
 
