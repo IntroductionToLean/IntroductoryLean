@@ -24,7 +24,7 @@ structure PreExtension where
   g : carrier →+ B
   injective : Function.Injective f
   surjective : Function.Surjective g
-  exact : Function.Exact f g
+  exact : Function.Exact f g -- image f = ker g
 
 instance : CoeSort (PreExtension A B) Type where
   coe := PreExtension.carrier
@@ -68,6 +68,9 @@ def neg (E : PreExtension A B) : PreExtension A B where
     · rintro ⟨y, hy⟩
       refine ⟨-y, by simp [hy]⟩
 
+/--
+E.g ×_A E'.g / ⟨(E.f a, -E'.f a)⟩
+-/
 @[simps f g]
 def add (E E' : PreExtension A B) : PreExtension A B where
   carrier :=
@@ -322,61 +325,218 @@ def trans (h₁ : PreExtensionIso E₁ E₂) (h₂ : PreExtensionIso E₂ E₃) 
 def addZero (E : PreExtension A B) :
     PreExtensionIso E (E.add .zero) where
   hom :=
-  { toFun e := QuotientAddGroup.mk' _ ⟨(e, ⟨0, E.g e⟩), by simp; rfl⟩
-    map_zero' := by simp only [map_zero]; rfl
+  { toFun e := QuotientAddGroup.mk' _ ⟨(e, (0, E.g e)), by
+      simp only [PreExtension.zero_g, AddSubgroup.mem_pullback]
+      rfl⟩
+    map_zero' := by simp only [PreExtension.zero_g, PreExtension.zero_f, map_zero,
+      QuotientAddGroup.mk'_apply]; rfl
     map_add' := by
       intro e e'
       simp only [PreExtension.zero_g, PreExtension.zero_f, map_add, QuotientAddGroup.mk'_apply]
-      refine QuotientAddGroup.eq.2 ?_
-      simp? [AddSubgroup.mem_addSubgroupOf]
-      refine ⟨0, by simp only [map_zero]; abel, Prod.ext ?_ ?_⟩
-
-      · simp only [map_zero, Prod.fst_zero]
-        change (0 : A) = -0 + (0 + 0)
-        simp
-      · simp only [map_zero, Prod.snd_zero]
-        change 0 = -(_ + _) + (_ + _)
+      erw [QuotientAddGroup.eq]
+      simp only [PreExtension.zero_g, AddMemClass.mk_add_mk, Prod.mk_add_mk]
+      rw [AddSubgroup.mem_addSubgroupOf]
+      simp only [AddSubgroup.coe_add, NegMemClass.coe_neg, Prod.neg_mk, neg_add_rev, Prod.mk_add_mk,
+        AddMonoidHom.mem_range, AddMonoidHom.prod_apply, Prod.mk.injEq]
+      use 0
+      constructor
+      · simp only [map_zero]
+        abel
+      erw [AddMonoidHom.neg_apply]
+      change - (0, 0) = (_, _)
+      simp only [Prod.neg_mk, neg_zero, Prod.mk.injEq]
+      constructor
+      · change 0 = -0 + (0 + 0)
+        abel
+      · change 0 = -(E.g e + E.g e') + (E.g e + E.g e')
         abel
     comm_f := by
-      ext a
       simp only [PreExtension.zero_g, PreExtension.zero_f, QuotientAddGroup.mk'_apply,
-        AddMonoidHom.coe_comp, AddMonoidHom.coe_mk, ZeroHom.coe_mk, Function.comp_apply,
         PreExtension.add_f]
+      ext a
+      simp only [AddMonoidHom.coe_comp, AddMonoidHom.coe_mk, ZeroHom.coe_mk, Function.comp_apply]
       erw [QuotientAddGroup.eq]
-      simp only [AddSubgroup.mem_addSubgroupOf, AddSubgroup.coe_add, NegMemClass.coe_neg,
-        Prod.neg_mk, Prod.mk_add_mk, neg_add_cancel, add_zero, AddMonoidHom.mem_range,
-        AddMonoidHom.prod_apply, Prod.mk.injEq]
+      rw [AddSubgroup.mem_addSubgroupOf]
+      simp only [AddSubgroup.coe_add, NegMemClass.coe_neg, Prod.neg_mk, Prod.mk_add_mk,
+        neg_add_cancel, add_zero, AddMonoidHom.mem_range, AddMonoidHom.prod_apply, Prod.mk.injEq]
       use 0
-      simp only [map_zero, zero_eq_neg, true_and]
-      rw [show E.g (E.f a) = 0 from congr($(E.exact.comp_eq_zero) a)]
-      rfl
-    comm_g := by rfl }
+      constructor
+      · simp
+      change -(0, 0) = _
+      ext
+      · change -0 = -0
+        rfl
+      · change -0 = - (E.g (E.f a))
+        simp only [neg_zero, zero_eq_neg]
+        have := E.exact.comp_eq_zero
+        have := congr_fun this a
+        exact this
+    comm_g := by sorry }
   inv :=
-  { toAddMonoidHom := QuotientAddGroup.lift _
-      (AddMonoidHom.restrict
-        (AddMonoidHom.coprod (AddMonoidHom.id _) (E.f.comp <| AddMonoidHom.fst _ _))
-        _)
+  { __ := QuotientAddGroup.lift _
+      (AddMonoidHom.restrict (AddMonoidHom.coprod (AddMonoidHom.id _) (E.f.comp <| AddMonoidHom.fst A B)) _)
       (by
-        rintro ⟨⟨e, ⟨a, b⟩⟩, (h : E.g e = b)⟩ h'
-        rw [AddSubgroup.mem_addSubgroupOf] at h'
-        simp only [PreExtension.zero_f, AddMonoidHom.mem_range, AddMonoidHom.prod_apply,
-          Prod.mk.injEq] at h'
-        obtain ⟨x, rfl, hx⟩ := h'
-        rw [show E.g (E.f x) = 0 from congr($(E.exact.comp_eq_zero) x)] at h
-        subst h
-        simp only [PreExtension.zero_g, AddMonoidHom.ker_restrict]
+        simp only [PreExtension.zero_g, PreExtension.zero_f, AddMonoidHom.ker_restrict]
+        rintro ⟨⟨e, ⟨a, b⟩⟩, (rfl : E.g e = b)⟩ h
+        rw [AddSubgroup.mem_addSubgroupOf] at h
+        simp only [AddMonoidHom.mem_range, AddMonoidHom.prod_apply, Prod.mk.injEq] at h
+        obtain ⟨x, rfl, (hx : -(x, 0) = _)⟩ := h
+        simp only [Prod.neg_mk, neg_zero, Prod.mk.injEq] at hx
+        have := hx.1
+        subst this
+        clear hx
         rw [AddSubgroup.mem_addSubgroupOf]
-        simp only [AddMonoidHom.mem_ker, AddMonoidHom.coprod_apply, AddMonoidHom.id_apply,
-          AddMonoidHom.coe_comp, AddMonoidHom.coe_fst, Function.comp_apply]
-        change (- x, -0) = (a, 0) at hx
-        simp only [neg_zero, Prod.mk.injEq, and_true] at hx
-        subst hx
         simp)
     comm_f := sorry
     comm_g := sorry }
-  hom_inv_id := sorry
-  inv_hom_id := sorry
+  hom_inv_id := by
 
+    ext x
+    induction x using QuotientAddGroup.induction_on with | H x =>
+    rcases x with ⟨⟨e, ⟨a, b⟩⟩, (rfl : E.g e = b)⟩
+    simp only [PreExtension.zero_g, PreExtension.zero_f, QuotientAddGroup.mk'_apply,
+      PreExtensionHom.comp_apply, PreExtensionHom.id_apply]
+    change QuotientAddGroup.mk' _ _ = QuotientAddGroup.mk' _ _
+    erw [QuotientAddGroup.eq]
+    rw [AddSubgroup.mem_addSubgroupOf]
+    simp only [AddSubgroup.coe_add, NegMemClass.coe_neg, Prod.neg_mk, Prod.mk_add_mk]
+    erw [QuotientAddGroup.lift_mk']
+    erw [AddMonoidHom.restrict_apply]
+    simp only [AddMonoidHom.coprod_apply, AddMonoidHom.id_apply, AddMonoidHom.coe_comp,
+      AddMonoidHom.coe_fst, Function.comp_apply, neg_add_rev, neg_add_cancel_right, map_add,
+      AddMonoidHom.mem_range, AddMonoidHom.prod_apply, Prod.mk.injEq]
+    use - a
+    simp only [map_neg, true_and]
+    change (_, _) = (_, _)
+    erw [AddMonoidHom.neg_apply]
+    rw [AddMonoidHom.inl_apply]
+    simp only [Prod.neg_mk, neg_zero, neg_neg, Prod.mk.injEq, right_eq_add]
+    constructor
+    · exact neg_zero
+    change 0 = -(E.g e + E.g (E.f a)) + E.g e
+    have : E.g (E.f a) = 0 := by sorry
+    rw [this]
+    abel
+  inv_hom_id := _
+  -- hom :=
+  -- { toFun e := QuotientAddGroup.mk' _ ⟨(e, ⟨0, E.g e⟩), by simp; rfl⟩
+  --   map_zero' := by simp only [map_zero]; rfl
+  --   map_add' := by
+  --     intro e e'
+  --     simp only [PreExtension.zero_g, PreExtension.zero_f, map_add, QuotientAddGroup.mk'_apply]
+  --     refine QuotientAddGroup.eq.2 ?_
+  --     simp? [AddSubgroup.mem_addSubgroupOf]
+  --     refine ⟨0, by simp only [map_zero]; abel, Prod.ext ?_ ?_⟩
+
+  --     · simp only [map_zero, Prod.fst_zero]
+  --       change (0 : A) = -0 + (0 + 0)
+  --       simp
+  --     · simp only [map_zero, Prod.snd_zero]
+  --       change 0 = -(_ + _) + (_ + _)
+  --       abel
+  --   comm_f := by
+  --     ext a
+  --     simp only [PreExtension.zero_g, PreExtension.zero_f, QuotientAddGroup.mk'_apply,
+  --       AddMonoidHom.coe_comp, AddMonoidHom.coe_mk, ZeroHom.coe_mk, Function.comp_apply,
+  --       PreExtension.add_f]
+  --     erw [QuotientAddGroup.eq]
+  --     simp only [AddSubgroup.mem_addSubgroupOf, AddSubgroup.coe_add, NegMemClass.coe_neg,
+  --       Prod.neg_mk, Prod.mk_add_mk, neg_add_cancel, add_zero, AddMonoidHom.mem_range,
+  --       AddMonoidHom.prod_apply, Prod.mk.injEq]
+  --     use 0
+  --     simp only [map_zero, zero_eq_neg, true_and]
+  --     rw [show E.g (E.f a) = 0 from congr($(E.exact.comp_eq_zero) a)]
+  --     rfl
+  --   comm_g := by rfl }
+  -- inv :=
+  -- { toAddMonoidHom := QuotientAddGroup.lift _
+  --     (AddMonoidHom.restrict
+  --       (AddMonoidHom.coprod (AddMonoidHom.id _) (E.f.comp <| AddMonoidHom.fst _ _))
+  --       _)
+  --     (by
+  --       rintro ⟨⟨e, ⟨a, b⟩⟩, (h : E.g e = b)⟩ h'
+  --       rw [AddSubgroup.mem_addSubgroupOf] at h'
+  --       simp only [PreExtension.zero_f, AddMonoidHom.mem_range, AddMonoidHom.prod_apply,
+  --         Prod.mk.injEq] at h'
+  --       obtain ⟨x, rfl, hx⟩ := h'
+  --       rw [show E.g (E.f x) = 0 from congr($(E.exact.comp_eq_zero) x)] at h
+  --       subst h
+  --       simp only [PreExtension.zero_g, AddMonoidHom.ker_restrict]
+  --       rw [AddSubgroup.mem_addSubgroupOf]
+  --       simp only [AddMonoidHom.mem_ker, AddMonoidHom.coprod_apply, AddMonoidHom.id_apply,
+  --         AddMonoidHom.coe_comp, AddMonoidHom.coe_fst, Function.comp_apply]
+  --       change (- x, -0) = (a, 0) at hx
+  --       simp only [neg_zero, Prod.mk.injEq, and_true] at hx
+  --       subst hx
+  --       simp)
+  --   comm_f := by
+  --     ext a
+  --     simp only [PreExtension.zero_g, PreExtension.zero_f, PreExtension.add_f,
+  --       QuotientAddGroup.mk'_apply, AddMonoidHom.coe_comp, Function.comp_apply]
+  --     erw [QuotientAddGroup.lift_mk']
+  --     erw [AddMonoidHom.restrict_apply]
+  --     simp
+  --   comm_g := by
+  --     ext x
+  --     induction x using QuotientAddGroup.induction_on with | H x =>
+  --     rcases x with ⟨⟨e, ⟨a, b⟩⟩, (rfl : E.g e = b)⟩
+  --     simp only [PreExtension.zero_g, PreExtension.zero_f, AddMonoidHom.coe_comp,
+  --       Function.comp_apply, PreExtension.add_g]
+  --     change E.g (_ + _) = _
+  --     simp only [AddMonoidHom.id_comp, AddSubmonoidClass.subtype_apply, AddMonoidHom.coe_fst,
+  --       AddMonoidHom.coe_comp, AddMonoidHom.coe_snd, Function.comp_apply, map_add]
+  --     rw [show E.g (E.f a) = 0 by rw [← Function.comp_apply (f := E.g), E.exact.comp_eq_zero]; rfl]
+  --     simp only [add_zero]
+  --     rfl }
+  -- hom_inv_id := by
+  --   ext x
+  --   induction x using QuotientAddGroup.induction_on with | H x =>
+  --   rcases x with ⟨⟨e, ⟨a, b⟩⟩, (rfl : E.g e = b)⟩
+  --   simp only [PreExtension.zero_g, PreExtension.zero_f, QuotientAddGroup.mk'_apply,
+  --     PreExtensionHom.comp_apply, PreExtensionHom.id_apply]
+  --   change QuotientAddGroup.mk' _ _ = QuotientAddGroup.mk' _ _
+  --   refine QuotientAddGroup.eq.2 ?_
+  --   rw [AddSubgroup.mem_addSubgroupOf]
+  --   dsimp only [AddSubgroup.coe_add, NegMemClass.coe_neg, Prod.neg_mk, Prod.mk_add_mk]
+  --   erw [QuotientAddGroup.lift_mk']
+  --   erw [AddMonoidHom.restrict_apply]
+  --   simp only [AddMonoidHom.coprod_apply, AddMonoidHom.id_apply, AddMonoidHom.coe_comp,
+  --     AddMonoidHom.coe_fst, Function.comp_apply, neg_add_rev, neg_add_cancel_right, map_add,
+  --     AddMonoidHom.mem_range, AddMonoidHom.prod_apply, Prod.mk.injEq]
+  --   use - a
+  --   simp only [map_neg, true_and]
+  --   change (_, _) = (_, _)
+  --   erw [AddMonoidHom.neg_apply]
+  --   rw [AddMonoidHom.inl_apply]
+  --   simp only [Prod.neg_mk, neg_zero, neg_neg, Prod.mk.injEq, right_eq_add]
+  --   constructor
+  --   · exact neg_zero
+  --   change 0 = -(E.g e + E.g (E.f a)) + E.g e
+  --   sorry
+  -- inv_hom_id := by
+  --   simp only [PreExtension.zero_g, PreExtension.zero_f, QuotientAddGroup.mk'_apply]
+  --   ext e
+  --   simp only [PreExtensionHom.comp_apply, PreExtensionHom.id_apply]
+  --   erw [QuotientAddGroup.lift_mk']
+  --   erw [AddMonoidHom.restrict_apply]
+  --   simp only [AddMonoidHom.coprod_apply, AddMonoidHom.id_apply, AddMonoidHom.coe_comp,
+  --     AddMonoidHom.coe_fst, Function.comp_apply, map_zero, add_zero]
+  --   rintro ⟨⟨e, ⟨a, b⟩⟩, (rfl : _ = b)⟩ h
+  --   rw [AddSubgroup.mem_addSubgroupOf] at h
+  --   simp only [AddMonoidHom.mem_range, AddMonoidHom.prod_apply, Prod.mk.injEq] at h
+  --   obtain ⟨x, rfl, (hx : (_, _) = (_, _))⟩ := h
+  --   simp only [Prod.mk.injEq] at hx
+  --   rcases hx with ⟨rfl, hx⟩
+  --   change -0 = _ at hx
+  --   simp only [AddMonoidHom.ker_restrict]
+  --   rw [AddSubgroup.mem_addSubgroupOf]
+  --   simp only [AddMonoidHom.mem_ker, AddMonoidHom.coprod_apply, AddMonoidHom.id_apply,
+  --     AddMonoidHom.coe_comp, AddMonoidHom.coe_fst, Function.comp_apply, map_neg]
+  --   change E.f x + -E.f x = 0
+  --   rw [add_neg_cancel]
+
+#check QuotientAddGroup.lift
+#check QuotientAddGroup.map
 
 def addAssoc (E₁ E₂ E₃ : PreExtension A B) :
     PreExtensionIso (E₁.add (E₂.add E₃)) ((E₁.add E₂).add E₃) := sorry
@@ -408,14 +568,14 @@ instance : Neg (Extension A B) where
     · rw [PreExtensionHom.neg_comp, e.hom_inv_id]; rfl
     · rw [PreExtensionHom.neg_comp, e.inv_hom_id]; rfl
 
-instance : AddCommGroup (Extension A B) where
-  add_assoc E₁ E₂ E₃ := Quotient.inductionOn₃ E₁ E₂ E₃ <| fun E₁ E₂ E₃ =>
-    Quotient.sound ⟨PreExtensionIso.addAssoc _ _ _ |>.symm⟩
-  zero_add E := Quotient.inductionOn E <| fun E => sorry
-  add_zero := _
-  nsmul := nsmulRec
-  neg := _
-  sub_eq_add_neg := _
-  zsmul := zsmulRec
-  neg_add_cancel := _
-  add_comm := _
+-- instance : AddCommGroup (Extension A B) where
+--   add_assoc E₁ E₂ E₃ := Quotient.inductionOn₃ E₁ E₂ E₃ <| fun E₁ E₂ E₃ =>
+--     Quotient.sound ⟨PreExtensionIso.addAssoc _ _ _ |>.symm⟩
+--   zero_add E := Quotient.inductionOn E <| fun E => sorry
+--   add_zero := _
+--   nsmul := nsmulRec
+--   neg := _
+--   sub_eq_add_neg := _
+--   zsmul := zsmulRec
+--   neg_add_cancel := _
+--   add_comm := _
